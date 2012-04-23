@@ -2,13 +2,12 @@
 
 TODO
 -  JsonOutput  @done
--  set up Gemfile, clean up, add readme, github
+-  set up Gemfile, clean up, add readme, github  @done
+-  test decoding attachments  @done
 -  add top-level namespace
--  rewrite html_part & text_part via document rules
--  wrap html with <html><body> if not already- use nokogiri
--  test decoding attachments
+-  rewrite html_part & text_part via document rules ?
+-  test decoding html
 -  Capture output filenames, trigger 'after' block
--  refactor document rules, move to separate source files
 -  multi threaded?
 -  abstract backend message queue
   
@@ -78,9 +77,7 @@ class Spool
       write attach.decoded, 
             File.join(
               base_dir, 
-              (out.attachments_path(attach.mime_type) || 
-               out.attachments_path(:all)
-              ),
+              out.attachments_path(attach.mime_type),
               attach.filename
             )
     end
@@ -169,7 +166,11 @@ class OutputRules < Struct.new(:path,
   end
   
   def attachments_path(type=:all)
-    File.join(path, attachments[type])
+    if attachments[type]
+      File.join(path, attachments[type] || '')
+    else
+      File.join(path, attachments[:all] || '')
+    end
   end
   
 end

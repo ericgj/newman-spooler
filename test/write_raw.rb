@@ -70,11 +70,12 @@ describe 'Spool#write_raw' do
       fix = Fixtures::Emails[:simple]
       subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
-        File.join(subject.base_dir, 
+        exp_file = \
+          File.join(subject.base_dir, 
                   'test_write_raw', 
                   'test-with-scrubbing-body.eml'
                  )
-        )
+        ), "#{exp_file} was not created"
     end
   end
   
