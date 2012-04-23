@@ -8,6 +8,7 @@ TODO
 -  rewrite html_part & text_part via document rules ?
 -  test decoding html
 -  Capture output filenames, trigger 'after' block
+-  capture email decoding errors
 -  multi threaded?
 -  abstract backend message queue
   
@@ -34,14 +35,21 @@ class Spool
     self
   end
   
+  def after(&after_proc)
+    self.after_proc = after_proc
+    self
+  end
+  
   # TODO separate threads ?
-  # TODO run 'after' proc
+  # TODO handle errors
   def <<(msg)
-    out = output_rules(m)
-    write_documents m, out
-    write_text_part m, out
-    write_html_part m, out
-    write_attachments m, out
+    files, attachs, errs = [], [], []
+    out = output_rules(msg)
+    files.push *write_documents(  msg, out) unless out.documents.empty?
+    files   << write_text_part(  msg, out) if out.text_part && msg.text_part
+    files   << write_html_part(  msg, out) if out.html_part && msg.html_part
+    attachs.push *write_attachments(msg, out) unless out.attachments.empty?
+    after_proc[files, attachs, errs]  if after_proc
     self
   end
   
@@ -64,12 +72,14 @@ class Spool
   
   # reimplement with DocumentRules
   def write_text_part(m, out)
-    write m.text_part.decoded, File.join(base_dir, out.text_part_path)
+    write m.text_part.decoded, 
+          File.join(base_dir, out.text_part_path)
   end
   
   # reimplement with DocumentRules
   def write_html_part(m, out)
-    write m.html_part.decoded, File.join(base_dir, out.html_part_path)
+    write m.html_part.decoded, 
+          File.join(base_dir, out.html_part_path)
   end
   
   def write_attachments(m, out)
@@ -85,7 +95,7 @@ class Spool
   
   private
   
-  attr_accessor :builder
+  attr_accessor :builder, :after_proc
   
   # todo deal with encodings?
   # todo abstract the backend (i.e. don't necessarily write to file system)
