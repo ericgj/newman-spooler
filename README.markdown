@@ -26,7 +26,7 @@ maildir.message do |out, m|
 end
 maildir.after do |files, attachments|
   files.each do |f|
-    FileUtils.mv(f, "../new/#{f + ':2,'}")
+    FileUtils.mv(f, "../new/#{f}:2,")
   end
 end
 
@@ -42,7 +42,7 @@ spool.message do |out, m|
 end
 
 spool.after do |files, attachments|
-  manifest = File.join("#{File.basename(files[0])}.manifest", spool.base_dir)
+  manifest = File.join("#{File.dirname(files[0])}.manifest", spool.base_dir)
   File.open( manifest, "w+") do |f|
     f.write files.join("\n")
     f.write attachments.join("\n")
