@@ -1,38 +1,25 @@
 =begin
 
 TODO
-1. JsonOutput
-2. Capture output filenames, trigger 'after' block
-3. rewrite html_part via document rules, wrap with <html><body> if not already- use nokogiri
-4. refactor document rules, move to separate source files
-5. multi threaded?
-6. abstract backend message queue
+-  JsonOutput  @done
+-  set up Gemfile, clean up, add readme, github
+-  add top-level namespace
+-  rewrite html_part & text_part via document rules
+-  wrap html with <html><body> if not already- use nokogiri
+-  test decoding attachments
+-  Capture output filenames, trigger 'after' block
+-  refactor document rules, move to separate source files
+-  multi threaded?
+-  abstract backend message queue
   
 =end
 require 'fileutils'
 
 require 'mail'
-require File.expand_path('patches/mail/message.rb', File.dirname(__FILE__))
+require File.expand_path('patches/mail/message', File.dirname(__FILE__))
 
-module SpoolUtils
-
-  def hash_path(msg, n=2)
-    hash(msg).insert(n,'/')
-  end
-  
-  def hash(msg)
-    require 'digest/sha1'
-    Digest::SHA1.hexdigest(msg.encoded)
-  end
-
-  # pathname escape valid for both Windows and *nix
-  def escape(string)
-    string.gsub(/([\<\>\:\"\/\\\|\?\*]+)/n) do
-      '%' + $1.unpack('H2' * $1.size).join('%').upcase
-    end.tr(' ', '_')
-  end 
-  
-end
+require File.expand_path('spool/utilities', File.dirname(__FILE__))
+require File.expand_path('spool/document_rules', File.dirname(__FILE__))
 
 class Spool
   extend SpoolUtils
@@ -76,11 +63,12 @@ class Spool
     end
   end
   
-  
+  # reimplement with DocumentRules
   def write_text_part(m, out)
     write m.text_part.decoded, File.join(base_dir, out.text_part_path)
   end
   
+  # reimplement with DocumentRules
   def write_html_part(m, out)
     write m.html_part.decoded, File.join(base_dir, out.html_part_path)
   end
@@ -103,6 +91,7 @@ class Spool
   attr_accessor :builder
   
   # todo deal with encodings?
+  # todo abstract the backend (i.e. don't necessarily write to file system)
   def write(data, target)
     if target && data
       FileUtils.mkdir_p(File.dirname(target))
@@ -186,125 +175,3 @@ class OutputRules < Struct.new(:path,
 end
 
 
-#----------NEW
-
-
-# base class
-class DocumentRules
-
-  DEFAULT_HEADERS    = ['Content-Type']
-  DEFAULT_PROPERTIES = ['charset']
-  DEFAULT_MIME_TYPES = ['text/plain']
-  
-  attr_accessor :file, :headers, :properties, :mime_types
-  
-  def initialize(file, params={})
-    self.file = file
-    self.headers      = params.delete(:headers)
-    self.properties   = params.delete(:properties)
-    self.mime_types   = params.delete(:mime_types)
-    initialize_params(params)
-  end
-
-  def [](msg)
-    raise NotImplementedError,
-          "Implement in subclass, return value must define #to_s"
-  end
-
-  # default no-op
-  def initialize_params(params)
-  end
-  
-  # helper function for common case
-  def to_hash(msg)
-    hdrs  = headers    ? (DEFAULT_HEADERS    | headers   ) : nil
-    prps  = properties ? (DEFAULT_PROPERTIES | properties) : nil
-    mimes = mime_types ? (DEFAULT_MIME_TYPES | mime_types) : nil
-    
-    puts hdrs.inspect
-    puts prps.inspect
-    puts mimes.inspect
-    
-    msg.to_hash :headers    => hdrs,
-                :properties => prps,
-                :mime_types => mimes
-  end
-  
-  
-end
-
-class RawDocumentRules < DocumentRules
-
-  def [](msg)
-    if scrub?
-      ScrubOutput.new( to_hash(msg) )
-    else
-      msg.encoded
-    end
-  end
-  
-  def scrub?
-    headers || properties || mime_types
-  end
-  
-  class ScrubOutput
-    
-    def initialize(hash)
-      @hash = hash
-    end
-    
-    def to_s
-      to_message.encoded
-    end
-  
-    # recursively build multipart message parts from hash
-    # expensive as hell as it dups the whole msg hash and each part
-    def to_message(h=nil,klass=::Mail::Message)
-      h ||= @hash
-      h = h.dup
-      if h['multipart_body']
-        parts = h.delete('multipart_body')
-      else
-        parts = []
-        h['body'] = h.delete('body_raw')
-      end
-      msg = klass.new(h)
-      parts.each do |part|
-        msg.add_part to_message(part, ::Mail::Part)
-      end
-      msg
-    end
-    
-  end
-  
-end
-
-
-class JsonDocumentRules < DocumentRules
-  
-  attr_accessor :options
-  
-  def [](msg)
-    JsonOutput.new( to_hash(msg), options )
-  end
-  
-  def initialize_params(params)
-    @options = params
-  end
-  
-  class JsonOutput
-    
-    DEFAULT_OPTIONS = {:pretty => true}
-    
-    def initialize(hash, opts={})
-      @hash, @options = hash, DEFAULT_OPTIONS.merge(opts)
-    end
-    
-    def to_s
-      require 'multi_json'
-      ::MultiJson.dump(@hash, @options)
-    end    
-    
-  end
-  
-end

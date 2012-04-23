@@ -19,8 +19,8 @@ describe 'Spool::Builder#[]' do
   subject do
     Spool::Builder.new do |out, m|
       out.path       "test"
-      out.text_part  "#{m.subject.decoded}.txt"
-      out.html_part  "html/#{m.subject.decoded}.html"
+      out.text_part  "#{m.subject}.txt"
+      out.html_part  "html/#{m.subject}.html"
       out.attachments 'image/jpg', 'images'  # save image attachments to images dir
       out.attachments :all,        'other'   # save all other attachments to other dir      
     end

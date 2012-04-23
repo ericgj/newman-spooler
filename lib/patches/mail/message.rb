@@ -1,3 +1,6 @@
+# Note this should probably be a module I extend onto Mail instances and their
+# parts, instead, to avoid conflict with other possible implementations of this.
+#
 module Mail
   class Message
   
