@@ -6,6 +6,13 @@ Developed with Newman in mind, but has no dependencies on Newman. It only
 expects to be fed [Mail](https://github.com/mikel/mail) objects, which it transforms into files according to
 rules.
 
+One application would be to dump mailing-list messages in a spot where they can 
+be processed and served up as an archive by another process - in other words, a 
+file system queue. 
+
+Potentially later this could be abstracted so different queue back-ends could
+be developed.
+
 Some examples (not all of this is implemented yet):
 
 ````ruby
