@@ -2,6 +2,52 @@ gem 'minitest'
 require 'minitest/spec'
 MiniTest::Unit.autorun
 
+
+module MailTestHelpers
+
+  def assert_equal_mail_headers(mail, actual)
+    actual.each do |(name, value)|
+      assert_equal exp = mail.header[name].value, value, 
+        "Expected header field '#{name}' to equal '#{exp}', was '#{value}'"
+    end
+  end
+  
+  def assert_includes_mail_headers(mail, actual)
+    mail.header.fields do |field|
+      assert_includes field.name, actual,
+        "Missing header field '#{field.name}'"
+    end
+  end
+  
+  def assert_equal_mail_body(mail, actual)
+    assert_equal mail.body.encoded, actual,
+      "Expected does not match actual body"
+  end
+  
+  def assert_equal_mail_property(mail, prop, actual)
+    assert_equal exp = mail.send(prop), actual,
+      "Expected mail property #{prop} to equal #{exp.inspect}, was #{actual}"
+  end
+  
+  def assert_includes_mail_part(mime_type, actual)
+    assert actual.any? { |part| 
+      part['headers'] && part['headers']['Content-Type'] =~ /^#{Regexp.escape(mime_type)}[;]*/
+    }, "Missing '#{mime_type}' part"
+  end
+  
+  def assert_equal_mail_part_body(mail, mime_type, actual)
+    actual_part = actual.find { |part| 
+      part['headers'] && part['headers']['Content-Type'] =~ /^#{Regexp.escape(mime_type)}[;]*/
+    }
+    exp_part = mail.parts.find { |part|
+      part.header['Content-Type'].value =~ /^#{Regexp.escape(mime_type)}[;]*/
+    }
+      
+    assert_equal exp_part.body.encoded, actual_part['body_raw'], 
+      "Expected does not match actual body in email part '#{mime_type}'"
+  end
+end
+
 # this is a really stupid dummy
 # whenever possible, use a real Mail::Message object
 class DummyEmail
@@ -70,7 +116,7 @@ class DummyEmail
     to_s
   end
   
-  # Note: only intended to simulate a real email
+  # Note: only intended to *simulate* a real email
   def to_s
     encoded_attachs = self.attachments.map do |a| 
                         "Content-Type: #{a.mime_type};\n" +

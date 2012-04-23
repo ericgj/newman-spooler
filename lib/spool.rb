@@ -1,7 +1,18 @@
+=begin
 
+TODO
+1. JsonOutput
+2. Capture output filenames, trigger 'after' block
+3. rewrite html_part via document rules, wrap with <html><body> if not already- use nokogiri
+4. refactor document rules, move to separate source files
+5. multi threaded?
+6. abstract backend message queue
+  
+=end
 require 'fileutils'
 
 require 'mail'
+require File.expand_path('patches/mail/message.rb', File.dirname(__FILE__))
 
 module SpoolUtils
 
@@ -175,51 +186,93 @@ class OutputRules < Struct.new(:path,
 end
 
 
+#----------NEW
 
-class RawDocumentRules
 
-  attr_accessor :file, :headers, :parts
+# base class
+class DocumentRules
+
+  DEFAULT_HEADERS    = ['Content-Type']
+  DEFAULT_PROPERTIES = ['charset']
+  DEFAULT_MIME_TYPES = ['text/plain']
+  
+  attr_accessor :file, :headers, :properties, :mime_types
   
   def initialize(file, params={})
     self.file = file
-    self.headers = Array(params.fetch(:headers,[]))
-    self.parts   = Array(params.fetch(:parts,[]))
+    self.headers      = params.delete(:headers)
+    self.properties   = params.delete(:properties)
+    self.mime_types   = params.delete(:mime_types)
+    initialize_params(params)
   end
 
   def [](msg)
-    RawOutput.new(msg, headers, parts)
+    raise NotImplementedError,
+          "Implement in subclass, return value must define #to_s"
+  end
+
+  # default no-op
+  def initialize_params(params)
   end
   
-  class RawOutput
+  # helper function for common case
+  def to_hash(msg)
+    hdrs  = headers    ? (DEFAULT_HEADERS    | headers   ) : nil
+    prps  = properties ? (DEFAULT_PROPERTIES | properties) : nil
+    mimes = mime_types ? (DEFAULT_MIME_TYPES | mime_types) : nil
     
-    attr_reader :message, :headers, :parts
+    puts hdrs.inspect
+    puts prps.inspect
+    puts mimes.inspect
     
-    def initialize(msg, headers=[], parts=[])
-      @message, @headers, @parts = msg, headers, parts
+    msg.to_hash :headers    => hdrs,
+                :properties => prps,
+                :mime_types => mimes
+  end
+  
+  
+end
+
+class RawDocumentRules < DocumentRules
+
+  def [](msg)
+    if scrub?
+      ScrubOutput.new( to_hash(msg) )
+    else
+      msg.encoded
+    end
+  end
+  
+  def scrub?
+    headers || properties || mime_types
+  end
+  
+  class ScrubOutput
+    
+    def initialize(hash)
+      @hash = hash
     end
     
     def to_s
-      (scrub? ? scrubbed_message : message).encoded
+      to_message.encoded
     end
   
-    def scrub?
-      !(headers.empty? && parts.empty?)
-    end
-    
-    def scrubbed_message
-      m = ::Mail::Message.new
-      m.header['Message-ID'] = message.header['Message-ID']
-      headers.each do |k|
-        m.header[k] = message.header[k]
+    # recursively build multipart message parts from hash
+    # expensive as hell as it dups the whole msg hash and each part
+    def to_message(h=nil,klass=::Mail::Message)
+      h ||= @hash
+      h = h.dup
+      if h['multipart_body']
+        parts = h.delete('multipart_body')
+      else
+        parts = []
+        h['body'] = h.delete('body_raw')
       end
-      parts.each do |meth|
-        if meth == :body
-          m.body = message.body.decoded     # probably not right
-        else
-          m.send "#{meth}=", message.send(meth)
-        end
+      msg = klass.new(h)
+      parts.each do |part|
+        msg.add_part to_message(part, ::Mail::Part)
       end
-      m      
+      msg
     end
     
   end
@@ -227,36 +280,31 @@ class RawDocumentRules
 end
 
 
-class JsonDocumentRules
-
-  attr_accessor :file, :headers, :parts
+class JsonDocumentRules < DocumentRules
   
-  def initialize(file, params={})
-    self.file = file
-    self.headers = Array(params.fetch(:headers,[]))
-    self.parts   = Array(params.fetch(:parts,[]))
-  end
+  attr_accessor :options
   
   def [](msg)
-    JsonOutput.new(msg, headers, parts)
+    JsonOutput.new( to_hash(msg), options )
+  end
+  
+  def initialize_params(params)
+    @options = params
   end
   
   class JsonOutput
     
-    attr_reader :message, :headers, :parts
+    DEFAULT_OPTIONS = {:pretty => true}
     
-    def initialize(msg, headers=[], parts=[])
-      @message, @headers, @parts = msg, headers, parts
+    def initialize(hash, opts={})
+      @hash, @options = hash, DEFAULT_OPTIONS.merge(opts)
     end
     
     def to_s
-      ::MultiJson.dump(to_hash, :pretty => true)
-    end
+      require 'multi_json'
+      ::MultiJson.dump(@hash, @options)
+    end    
     
-    #TODO
-    def to_hash
-      
-    end
   end
   
 end
