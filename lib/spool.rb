@@ -41,8 +41,7 @@ class Spool
   # TODO run 'after' proc
   def <<(msg)
     out = output_rules(m)
-    write_raw m, out
-    write_json m, out
+    write_documents m, out
     write_text_part m, out
     write_html_part m, out
     write_attachments m, out
@@ -59,18 +58,13 @@ class Spool
     builder[m]
   end
   
-  def write_raw(m, out)
-    if out.scrub_raw?
-      write scrubbed_message(m, out.raw_headers, out.raw_parts).encoded,
-            File.join(base_dir, out.raw_path)
-    else
-      write m.encoded, File.join(base_dir, out.raw_path)
+  
+  def write_documents(m, out)
+    out.documents.map do |spec|
+      write spec[m].to_s, File.join(base_dir, out.path, spec.file)
     end
   end
-
-  #todo  
-  def write_json(m, out)
-  end
+  
   
   def write_text_part(m, out)
     write m.text_part.decoded, File.join(base_dir, out.text_part_path)
@@ -93,26 +87,11 @@ class Spool
     end
   end
   
-  def scrubbed_message(msg, headers, parts)
-    m = ::Mail::Message.new
-    m.header['Message-ID'] = msg.header['Message-ID']
-    headers.each do |k|
-      m.header[k] = msg.header[k]
-    end
-    parts.each do |meth|
-      if meth == :body
-        m.body = msg.body.decoded
-      else
-        m.send "#{meth}=", msg.send(meth)
-      end
-    end
-    m
-  end
-  
   private
   
   attr_accessor :builder
   
+  # todo deal with encodings?
   def write(data, target)
     if target && data
       FileUtils.mkdir_p(File.dirname(target))
@@ -132,7 +111,7 @@ class Spool
     end
     
     def [](msg)
-      @output = Output.new
+      @output = OutputRules.new
       @build_proc.call(self, msg)
       @output
     end
@@ -142,15 +121,11 @@ class Spool
     end
 
     def raw(file, params={})
-      output.raw_headers = Array(params.fetch(:headers,[]))
-      output.raw_parts   = Array(params.fetch(:parts,[]))
-      output.raw = file
+      output.add_document RawDocumentRules.new(file, params)
     end
     
     def json(file, params={})
-      output.json_headers = Array(params.fetch(:headers,[]))
-      output.json_parts   = Array(params.fetch(:parts,[]))
-      output.json = file
+      output.add_document JsonDocumentRules.new(file, params)
     end
     
     def text_part(file)
@@ -161,62 +136,127 @@ class Spool
       output.html_part = file
     end
     
-    def headers(file)
-      output.headers = file
-    end
-    
     def attachments(mime_type=:all, dir='')
       output.attachments[mime_type] = dir
     end
     
-    class Output < Struct.new(:path, 
-                              :raw,
-                              :raw_headers,
-                              :raw_parts, 
-                              :json,
-                              :json_headers,
-                              :json_parts,
-                              :text_part, 
-                              :html_part, 
-                              :headers, 
-                              :attachments)
+  end
+  
+end
+
+class OutputRules < Struct.new(:path, 
+                          :documents,
+                          :text_part, 
+                          :html_part, 
+                          :attachments)
+
+  def initialize(*args)
+    super
+    self.documents ||= []
+    self.attachments ||= {}
+  end
+  
+  def add_document(doc)
+    self.documents << doc
+  end
     
-      def initialize(*args)
-        super
-        self.raw_headers ||= []  # empty == all
-        self.raw_parts ||= []    # empty == all
-        self.json_headers ||= []  # empty == all
-        self.json_parts ||= []    # empty == all
-        self.attachments ||= {}
-      end
-      
-      def raw_path
-        File.join(path, raw)
-      end
-      
-      def scrub_raw?
-        !(raw_headers.empty? && raw_parts.empty?)
-      end
-      
-      def text_part_path
-        File.join(path, text_part)
-      end
-      
-      def html_part_path
-        File.join(path, html_part)
-      end
-      
-      def headers_path
-        File.join(path, headers)
-      end
-      
-      def attachments_path(type=:all)
-        File.join(path, attachments[type])
-      end
-      
-      
+  def text_part_path
+    File.join(path, text_part)
+  end
+  
+  def html_part_path
+    File.join(path, html_part)
+  end
+  
+  def attachments_path(type=:all)
+    File.join(path, attachments[type])
+  end
+  
+end
+
+
+
+class RawDocumentRules
+
+  attr_accessor :file, :headers, :parts
+  
+  def initialize(file, params={})
+    self.file = file
+    self.headers = Array(params.fetch(:headers,[]))
+    self.parts   = Array(params.fetch(:parts,[]))
+  end
+
+  def [](msg)
+    RawOutput.new(msg, headers, parts)
+  end
+  
+  class RawOutput
+    
+    attr_reader :message, :headers, :parts
+    
+    def initialize(msg, headers=[], parts=[])
+      @message, @headers, @parts = msg, headers, parts
     end
     
+    def to_s
+      (scrub? ? scrubbed_message : message).encoded
+    end
+  
+    def scrub?
+      !(headers.empty? && parts.empty?)
+    end
+    
+    def scrubbed_message
+      m = ::Mail::Message.new
+      m.header['Message-ID'] = message.header['Message-ID']
+      headers.each do |k|
+        m.header[k] = message.header[k]
+      end
+      parts.each do |meth|
+        if meth == :body
+          m.body = message.body.decoded     # probably not right
+        else
+          m.send "#{meth}=", message.send(meth)
+        end
+      end
+      m      
+    end
+    
+  end
+  
+end
+
+
+class JsonDocumentRules
+
+  attr_accessor :file, :headers, :parts
+  
+  def initialize(file, params={})
+    self.file = file
+    self.headers = Array(params.fetch(:headers,[]))
+    self.parts   = Array(params.fetch(:parts,[]))
+  end
+  
+  def [](msg)
+    JsonOutput.new(msg, headers, parts)
+  end
+  
+  class JsonOutput
+    
+    attr_reader :message, :headers, :parts
+    
+    def initialize(msg, headers=[], parts=[])
+      @message, @headers, @parts = msg, headers, parts
+    end
+    
+    def to_s
+      ::MultiJson.dump(to_hash, :pretty => true)
+    end
+    
+    #TODO
+    def to_hash
+      
+    end
   end
   
 end

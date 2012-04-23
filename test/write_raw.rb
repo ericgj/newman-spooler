@@ -37,7 +37,7 @@ describe 'Spool#write_raw' do
     
     it 'should write raw message without attachments to specified path' do
       fix = Fixtures::Emails[:simple]
-      subject.write_raw(fix, subject.output_rules(fix))
+      subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
                   'test_write_raw', 
@@ -61,7 +61,7 @@ describe 'Spool#write_raw' do
     
     it 'should write scrubbed message to specified path' do
       fix = Fixtures::Emails[:simple]
-      subject.write_raw(fix, subject.output_rules(fix))
+      subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
                   'test_write_raw', 
@@ -85,7 +85,7 @@ describe 'Spool#write_raw' do
     
     it 'should write scrubbed message to specified path' do
       fix = Fixtures::Emails[:simple]
-      subject.write_raw(fix, subject.output_rules(fix))
+      subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
                   'test_write_raw', 
