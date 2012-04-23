@@ -31,13 +31,15 @@ module MailTestHelpers
   
   def assert_includes_mail_part(mime_type, actual)
     assert actual.any? { |part| 
-      part['headers'] && part['headers']['Content-Type'] =~ /^#{Regexp.escape(mime_type)}[;]*/
+      part['headers'] && 
+      part['headers']['Content-Type'] =~ /^#{Regexp.escape(mime_type)}[;]*/
     }, "Missing '#{mime_type}' part"
   end
   
   def assert_equal_mail_part_body(mail, mime_type, actual)
     actual_part = actual.find { |part| 
-      part['headers'] && part['headers']['Content-Type'] =~ /^#{Regexp.escape(mime_type)}[;]*/
+      part['headers'] && 
+      part['headers']['Content-Type'] =~ /^#{Regexp.escape(mime_type)}[;]*/
     }
     exp_part = mail.parts.find { |part|
       part.header['Content-Type'].value =~ /^#{Regexp.escape(mime_type)}[;]*/

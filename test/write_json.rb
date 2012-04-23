@@ -1,6 +1,8 @@
 require File.expand_path('../lib/spool',File.dirname(__FILE__))
 require File.expand_path('helper', File.dirname(__FILE__))
 
+module SpoolWriteJsonDocumentTests
+
 describe 'Spool write json document' do
   
   module Fixtures
@@ -157,4 +159,6 @@ describe 'Spool write json document' do
   
   end
   
+end
+
 end

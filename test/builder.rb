@@ -1,6 +1,8 @@
 require File.expand_path('../lib/spool',File.dirname(__FILE__))
 require File.expand_path('helper', File.dirname(__FILE__))
 
+module SpoolBuilderTests
+
 describe 'Spool::Builder#[]' do
 
   module Fixtures
@@ -46,4 +48,6 @@ describe 'Spool::Builder#[]' do
     assert_equal "test/other", out.attachments_path
   end
   
+end
+
 end

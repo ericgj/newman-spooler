@@ -1,6 +1,8 @@
 require File.expand_path('../lib/spool',File.dirname(__FILE__))
 require File.expand_path('helper', File.dirname(__FILE__))
 
+module SpoolWriteRawTests
+
 describe 'Spool#write_raw' do
   
   module Fixtures
@@ -104,4 +106,6 @@ describe 'Spool#write_raw' do
     end  
   end
   
+end
+
 end
