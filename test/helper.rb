@@ -45,7 +45,7 @@ module MailTestHelpers
       part.header['Content-Type'].value =~ /^#{Regexp.escape(mime_type)}[;]*/
     }
       
-    assert_equal exp_part.body.encoded, actual_part['body_raw'], 
+    assert_equal exp_part.body.encoded, actual_part['body'], 
       "Expected does not match actual body in email part '#{mime_type}'"
   end
 end

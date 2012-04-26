@@ -30,12 +30,15 @@ module Mail
       end
       
       # non-string properties
-      hash['delivery_handler'] = delivery_handler.to_s \
-        if delivery_handler && 
-           (incl_props.nil? || incl_props.include?(:@delivery_handler))  
-      hash['transport_encoding'] = transport_encoding.to_s \
-        if incl_props.nil? || incl_props.include?(:@transport_encoding)
-        
+      if delivery_handler && 
+         (incl_props.nil? || incl_props.include?(:@delivery_handler))  
+        hash['delivery_handler'] = delivery_handler.to_s
+      end
+      
+      if incl_props.nil? || incl_props.include?(:@transport_encoding)
+        hash['transport_encoding'] = transport_encoding.to_s
+      end
+      
       special_variables = [:@header, :@delivery_handler, :@transport_encoding]
       
       # recursively add parts under multipart_body key
@@ -50,9 +53,20 @@ module Mail
       end
       
       # properties
+      #
+      # Note hack: binary bodies are left in existing transfer-encoding rather
+      # than decoded. Decoding triggers errors in serialization.
+      # However, note that CRLF endings are left in, and a given serialization
+      # may need to escape these.
+      #
       (instance_variables.map(&:to_sym) - special_variables).each do |var|
         if incl_props.nil? || incl_props.include?(var)
-          hash[var.to_s.gsub(/^\@/,'')] = instance_variable_get(var)
+          hash[var.to_s.gsub(/^\@/,'')] = 
+            if var == :@body && %w[base64 binary].include?(body.encoding)
+              instance_variable_get(var).encoded
+            else
+              instance_variable_get(var)
+            end
         end
       end
       hash

@@ -37,29 +37,56 @@ describe 'Spool#after' do
   
   end
 
-  describe 'output raw, text, html, json, and attachments' do
+  describe 'parameters' do
   
+    before do
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_after")
+    end
+    
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
         out.path 'test_after'
         out.raw  'raw.eml'
-        out.text_part 'output.txt'
-        out.html_part 'output.html'
-        out.json 'output.json'
+        out.body 'output.txt',  :part => :text
+        out.body 'output.html', :part => :html
+        out.json 'output.json', :properties => [:body]
         out.attachments :all, 'attachments'
       end
       spool    
     }
     
-    it 'should pass raw and json filenames into after proc for simple case' do
-      fix = Fixtures::Emails[:simple]
+    [:simple, :multipart, :with_attachments].each do |fix_key|
+      it "should include raw, text, html, json filenames for #{fix_key} case" do
+        fix = Fixtures::Emails[fix_key]
+        subject.after do |files, attachments, _|
+          puts "---------- after #{fix_key}"
+          puts files.join("\n")
+          puts attachments.join("\n")
+          assert_equal 4, files.size
+          assert_equal fix.attachments.size, attachments.size
+          %w[raw.eml output.txt output.html output.json].each do |f|
+            assert_includes files, 
+              "#{Fixtures::TEST_OUTPUT_ROOT}/test_after/#{f}"
+          end
+        end
+        subject << fix
+      end
+    end
+    
+    it 'should include all attachment filenames into after proc' do
+      fix_key = :with_attachments
+      fix = Fixtures::Emails[fix_key]
       subject.after do |files, attachments, _|
+        puts "---------- after #{fix_key}"
         puts files.join("\n")
-        assert_equal 2, files.size
-        assert_equal 0, attachments.size
-        assert_includes files, "#{Fixtures::TEST_OUTPUT_ROOT}/test_after/raw.eml"
-        assert_includes files, "#{Fixtures::TEST_OUTPUT_ROOT}/test_after/output.json"
+        puts attachments.join("\n")
+        assert_equal 4, files.size
+        assert_equal fix.attachments.size, attachments.size
+        fix.attachments.map(&:filename).each do |f|
+          assert_includes attachments, 
+            "#{Fixtures::TEST_OUTPUT_ROOT}/test_after/attachments/#{f}"
+        end
       end
       subject << fix
     end

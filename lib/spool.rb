@@ -4,8 +4,9 @@ TODO
 -  JsonOutput  @done
 -  set up Gemfile, clean up, add readme, github  @done
 -  test decoding attachments  @done
+-  test json with attachments 
 -  add top-level namespace
--  rewrite html_part & text_part via document rules ?
+-  rewrite html_part & text_part via document rules ?   @done
 -  test decoding html
 -  Capture output filenames, trigger 'after' block
 -  capture email decoding errors
@@ -133,6 +134,11 @@ class Spool
     
     def json(file, params={})
       output.add_document JsonDocumentRules.new(file, params)
+    end
+    
+    def body(file, params={})
+      params = {:part => :text}.merge(params)
+      output.add_document BodyDocumentRules.new(file, params)
     end
     
     def text_part(file)

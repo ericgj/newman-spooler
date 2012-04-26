@@ -30,16 +30,18 @@ describe 'Spool write json document' do
       }
     }
   end
-  
-  # Todo remove output files before each test
-  
+    
   describe 'simple email' do
     include MailTestHelpers
     
+    before do
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_write_json/simple")
+    end
+      
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
-        out.path 'test_write_json'
+        out.path 'test_write_json/simple'
         out.json 'test-simple.json'
       end
       spool
@@ -50,7 +52,7 @@ describe 'Spool write json document' do
       subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
-                  'test_write_json', 
+                  'test_write_json/simple', 
                   'test-simple.json'
                  )
         )
@@ -60,14 +62,14 @@ describe 'Spool write json document' do
       fix = Fixtures::Emails[:simple]
       subject.write_documents(fix, subject.output_rules(fix))
       file = File.join(subject.base_dir, 
-                  'test_write_json', 
+                  'test_write_json/simple', 
                   'test-simple.json'
                  )
       json = MultiJson.load(File.read(file))
       
       assert_includes_mail_headers fix, json['headers']
       assert_equal_mail_headers    fix, json['headers']
-      assert_equal_mail_body       fix, json['body_raw']
+      assert_equal_mail_body       fix, json['body']
       assert_equal_mail_property   fix, :charset, json['charset']
     end
     
@@ -76,10 +78,14 @@ describe 'Spool write json document' do
   describe 'simple email with specified headers and properties' do
     include MailTestHelpers
     
+    before do
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_write_json/simple_scrubbed")
+    end
+    
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
-        out.path 'test_write_json'
+        out.path 'test_write_json/simple_scrubbed'
         out.json 'test-simple-scrubbed.json', 
           :headers => ['From', 'Subject'],
           :properties => ['body']
@@ -92,7 +98,7 @@ describe 'Spool write json document' do
       subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
-                  'test_write_json', 
+                  'test_write_json/simple_scrubbed', 
                   'test-simple-scrubbed.json'
                  )
         )
@@ -102,7 +108,7 @@ describe 'Spool write json document' do
       fix = Fixtures::Emails[:simple]
       subject.write_documents(fix, subject.output_rules(fix))
       file = File.join(subject.base_dir, 
-                  'test_write_json', 
+                  'test_write_json/simple_scrubbed', 
                   'test-simple-scrubbed.json'
                  )
       json = MultiJson.load(File.read(file))
@@ -117,10 +123,14 @@ describe 'Spool write json document' do
   describe 'multipart email' do
     include MailTestHelpers
     
+    before do
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_write_json/multipart")
+    end
+
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
-        out.path 'test_write_json'
+        out.path 'test_write_json/multipart'
         out.json 'test-multipart.json', :mime_types => ['text/plain', 'text/html']
       end
       spool
@@ -131,7 +141,7 @@ describe 'Spool write json document' do
       subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
-                  'test_write_json', 
+                  'test_write_json/multipart', 
                   'test-multipart.json'
                  )
         )
@@ -141,7 +151,7 @@ describe 'Spool write json document' do
       fix = Fixtures::Emails[:multipart]
       subject.write_documents(fix, subject.output_rules(fix))
       file = File.join(subject.base_dir, 
-                  'test_write_json', 
+                  'test_write_json/multipart', 
                   'test-multipart.json'
                  )
       json = MultiJson.load(File.read(file))

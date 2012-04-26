@@ -35,10 +35,14 @@ describe 'Spool#write_raw' do
   
   describe 'without scrubbing' do
   
+    before do 
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_write_raw/without_scrubbing")
+    end
+    
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
-        out.path 'test_write_raw'
+        out.path 'test_write_raw/without_scrubbing'
         out.raw  'test-without-scrubbing.eml'
       end
       spool
@@ -49,7 +53,7 @@ describe 'Spool#write_raw' do
       subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
-                  'test_write_raw', 
+                  'test_write_raw/without_scrubbing', 
                   'test-without-scrubbing.eml'
                  )
         )
@@ -58,12 +62,17 @@ describe 'Spool#write_raw' do
   
   describe 'with scrubbing, body only' do
   
+    before do 
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_write_raw/with_scrubbing")
+    end
+    
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
-        out.path 'test_write_raw'
-        out.raw  'test-with-scrubbing-body.eml', :headers => ['From', 'Subject'],
-                                                 :properties => ['body_raw']
+        out.path 'test_write_raw/with_scrubbing'
+        out.raw  'test-with-scrubbing-body.eml', 
+                   :headers => ['From', 'Subject'],
+                   :properties => ['body_raw']
       end
       spool
     }
@@ -74,7 +83,7 @@ describe 'Spool#write_raw' do
       assert File.exist?( 
         exp_file = \
           File.join(subject.base_dir, 
-                  'test_write_raw', 
+                  'test_write_raw/with_scrubbing', 
                   'test-with-scrubbing-body.eml'
                  )
         ), "#{exp_file} was not created"
@@ -83,13 +92,18 @@ describe 'Spool#write_raw' do
   
   describe 'with scrubbing, parts specified' do
 
+    before do 
+      FileUtils.rm_f("#{Fixtures::TEST_OUTPUT_ROOT}/test_write_raw/with_scrubbing_html_only")
+    end
+  
     subject {
       spool = Spool.new(Fixtures::TEST_OUTPUT_ROOT)
       spool.message do |out, m|
-        out.path 'test_write_raw'
-        out.raw  'test-with-scrubbing-html.eml', :headers => ['From', 'Subject', 'Content-Type'],
-                                                 :properties => ['body_raw', 'charset'],
-                                                 :mime_types => ['text/html']
+        out.path 'test_write_raw/with_scrubbing_html_only'
+        out.raw  'test-with-scrubbing-html.eml', 
+                   :headers => ['From', 'Subject', 'Content-Type'],
+                   :properties => ['body_raw', 'charset'],
+                   :mime_types => ['text/html']
       end
       spool
     }
@@ -99,7 +113,7 @@ describe 'Spool#write_raw' do
       subject.write_documents(fix, subject.output_rules(fix))
       assert File.exist?( 
         File.join(subject.base_dir, 
-                  'test_write_raw', 
+                  'test_write_raw/with_scrubbing_html_only', 
                   'test-with-scrubbing-html.eml'
                  )
         )

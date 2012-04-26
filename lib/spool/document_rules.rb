@@ -5,13 +5,14 @@ class DocumentRules
   DEFAULT_PROPERTIES = ['charset']
   DEFAULT_MIME_TYPES = ['text/plain']
   
-  attr_accessor :file, :headers, :properties, :mime_types
+  attr_accessor :file, :headers, :properties, :mime_types, :options
   
   def initialize(file, params={})
     self.file = file
     self.headers      = params.delete(:headers)
     self.properties   = params.delete(:properties)
     self.mime_types   = params.delete(:mime_types)
+    self.options      = params
     initialize_params(params)
   end
 
@@ -84,17 +85,37 @@ class RawDocumentRules < DocumentRules
   
 end
 
-
-class JsonDocumentRules < DocumentRules
+class BodyDocumentRules < DocumentRules
   
-  attr_accessor :options
-  
-  def [](msg)
-    JsonOutput.new( to_hash(msg), options )
+  # include headers if passed?
+  def[](msg)
+    case options[:part]
+    when :text
+      text(msg)
+    when :html
+      html(msg)
+    else
+      ''
+    end
   end
   
-  def initialize_params(params)
-    @options = params
+  private
+  
+  def text(msg)
+    (msg.text_part ? msg.text_part : msg.body).decoded
+  end
+  
+  def html(msg)
+    (msg.html_part ? msg.html_part.decoded : '')
+  end
+    
+end
+
+
+class JsonDocumentRules < DocumentRules
+    
+  def [](msg)
+    JsonOutput.new( to_hash(msg), options )
   end
   
   class JsonOutput
