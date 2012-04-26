@@ -4,11 +4,10 @@ TODO
 -  JsonOutput  @done
 -  set up Gemfile, clean up, add readme, github  @done
 -  test decoding attachments  @done
--  test json with attachments 
+-  test json with attachments @done
 -  add top-level namespace
 -  rewrite html_part & text_part via document rules ?   @done
--  test decoding html
--  Capture output filenames, trigger 'after' block
+-  Capture output filenames, trigger 'after' block  @done
 -  capture email decoding errors
 -  multi threaded?
 -  abstract backend message queue
@@ -46,10 +45,12 @@ class Spool
   def <<(msg)
     files, attachs, errs = [], [], []
     out = output_rules(msg)
-    files.push *write_documents(  msg, out) unless out.documents.empty?
-    files   << write_text_part(  msg, out) if out.text_part && msg.text_part
-    files   << write_html_part(  msg, out) if out.html_part && msg.html_part
+    
+    files.push   *write_documents(  msg, out) unless out.documents.empty?
+    files <<     write_text_part(  msg, out) if out.text_part && msg.text_part
+    files <<     write_html_part(  msg, out) if out.html_part && msg.html_part
     attachs.push *write_attachments(msg, out) unless out.attachments.empty?
+    
     after_proc[files, attachs, errs]  if after_proc
     self
   end
@@ -71,14 +72,16 @@ class Spool
     end
   end
   
-  # reimplement with DocumentRules
+  # deprecate
   def write_text_part(m, out)
+    warn "deprecated, use #write_documents instead"
     write m.text_part.decoded, 
           File.join(base_dir, out.text_part_path)
   end
   
-  # reimplement with DocumentRules
+  # deprecate
   def write_html_part(m, out)
+    warn "deprecated, use #write_documents instead"
     write m.html_part.decoded, 
           File.join(base_dir, out.html_part_path)
   end
@@ -142,11 +145,13 @@ class Spool
     end
     
     def text_part(file)
-      output.text_part = file
+      body file, :part => :text
+      #output.text_part = file
     end
     
     def html_part(file)
-      output.html_part = file
+      body file, :part => :html
+      #output.html_part = file
     end
     
     def attachments(mime_type=:all, dir='')
@@ -159,8 +164,6 @@ end
 
 class OutputRules < Struct.new(:path, 
                           :documents,
-                          :text_part, 
-                          :html_part, 
                           :attachments)
 
   def initialize(*args)
@@ -171,14 +174,6 @@ class OutputRules < Struct.new(:path,
   
   def add_document(doc)
     self.documents << doc
-  end
-    
-  def text_part_path
-    File.join(path, text_part)
-  end
-  
-  def html_part_path
-    File.join(path, html_part)
   end
   
   def attachments_path(type=:all)

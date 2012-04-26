@@ -28,17 +28,6 @@ describe 'Spool::Builder#[]' do
     end
   end
   
-  it 'should return text_part file as specified with path' do
-    fix = Fixtures::Emails[:simple]
-    out = subject[fix]
-    assert_equal "test/#{fix.subject}.txt", out.text_part_path
-  end
-
-  it 'should return html_part file as specified with path' do
-    fix = Fixtures::Emails[:simple]
-    out = subject[fix]
-    assert_equal "test/html/#{fix.subject}.html", out.html_part_path
-  end
   
   it 'should resolve attachment paths as specified' do
     fix = Fixtures::Emails[:simple]
