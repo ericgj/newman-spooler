@@ -47,8 +47,6 @@ class Spool
     out = output_rules(msg)
     
     files.push   *write_documents(  msg, out) unless out.documents.empty?
-    files <<     write_text_part(  msg, out) if out.text_part && msg.text_part
-    files <<     write_html_part(  msg, out) if out.html_part && msg.html_part
     attachs.push *write_attachments(msg, out) unless out.attachments.empty?
     
     after_proc[files, attachs, errs]  if after_proc
@@ -64,8 +62,7 @@ class Spool
   def output_rules(m)
     builder[m]
   end
-  
-  
+    
   def write_documents(m, out)
     out.documents.map do |spec|
       write spec[m].to_s, File.join(base_dir, out.path, spec.file)
